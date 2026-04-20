@@ -1,0 +1,2269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Data Cleansing Software</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #05080f;
+  --surface: #0c111e;
+  --card: #111826;
+  --card2: #161f30;
+  --border: #1e2d45;
+  --border2: #253550;
+  --accent: #00c8ff;
+  --accent-dim: rgba(0,200,255,0.12);
+  --green: #00e5a0;
+  --green-dim: rgba(0,229,160,0.1);
+  --yellow: #fbbf24;
+  --yellow-dim: rgba(251,191,36,0.1);
+  --red: #f87171;
+  --red-dim: rgba(248,113,113,0.1);
+  --purple: #a78bfa;
+  --purple-dim: rgba(167,139,250,0.1);
+  --orange: #fb923c;
+  --text: #e2e8f0;
+  --text2: #94a3b8;
+  --text3: #4a5568;
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'Space Grotesk', sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  line-height: 1.5;
+}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 99px; }
+
+/* ── TOPBAR ── */
+.topbar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 2rem;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 200;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.brand-icon {
+  width: 32px; height: 32px;
+  background: linear-gradient(135deg, var(--accent), var(--green));
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1rem;
+}
+.brand-name {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.brand-name span { color: var(--accent); }
+.step-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.72rem;
+  color: var(--text2);
+  font-family: var(--mono);
+}
+.step-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--border2);
+  transition: background 0.3s;
+}
+.step-dot.active { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+.step-dot.done { background: var(--green); }
+
+/* ── UPLOAD SCREEN ── */
+#screen-upload {
+  min-height: calc(100vh - 56px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  position: relative;
+  overflow: hidden;
+}
+#screen-upload::before {
+  content: '';
+  position: absolute;
+  width: 800px; height: 800px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0,200,255,0.06) 0%, transparent 65%);
+  top: 50%; left: 50%;
+  transform: translate(-50%,-50%);
+  pointer-events: none;
+}
+
+.upload-panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 3rem;
+  max-width: 580px;
+  width: 100%;
+  position: relative;
+  z-index: 1;
+  box-shadow: 0 40px 80px rgba(0,0,0,0.6);
+}
+.upload-heading {
+  text-align: center;
+  margin-bottom: 2.5rem;
+}
+.upload-heading h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  margin-bottom: 0.5rem;
+}
+.upload-heading h1 em {
+  font-style: normal;
+  background: linear-gradient(90deg, var(--accent), var(--green));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.upload-heading p { color: var(--text2); font-size: 0.88rem; }
+
+.drop-zone {
+  border: 2px dashed var(--border2);
+  border-radius: 16px;
+  padding: 3rem 2rem;
+  text-align: center;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.25s;
+  background: rgba(255,255,255,0.01);
+}
+.drop-zone:hover, .drop-zone.over {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+.drop-zone input[type="file"] {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+}
+.dz-icon { font-size: 2.5rem; margin-bottom: 1rem; }
+.dz-cta { font-weight: 600; color: var(--accent); font-size: 1rem; }
+.dz-sub { color: var(--text3); font-size: 0.78rem; margin-top: 0.4rem; font-family: var(--mono); }
+
+.upload-features {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-top: 2rem;
+}
+.uf-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  color: var(--text2);
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.6rem 0.9rem;
+}
+.uf-icon { font-size: 1rem; }
+
+/* ── SCREENS ── */
+.screen { display: none; }
+.screen.active { display: block; }
+
+/* ── MAIN LAYOUT ── */
+.app-layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  min-height: calc(100vh - 56px);
+}
+
+/* ── SIDEBAR ── */
+.sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 1.5rem 1rem;
+  overflow-y: auto;
+  position: sticky;
+  top: 56px;
+  height: calc(100vh - 56px);
+}
+.sidebar-section { margin-bottom: 0.5rem; }
+.sidebar-header {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.25rem;
+}
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  color: var(--text2);
+  transition: all 0.15s;
+  border: 1px solid transparent;
+}
+.sidebar-item:hover { background: rgba(255,255,255,0.04); color: var(--text); }
+.sidebar-item.active {
+  background: var(--accent-dim);
+  color: var(--accent);
+  border-color: rgba(0,200,255,0.2);
+}
+.sidebar-item .si-icon { font-size: 1rem; width: 20px; text-align: center; }
+.sidebar-item .si-badge {
+  margin-left: auto;
+  background: var(--accent-dim);
+  color: var(--accent);
+  border-radius: 20px;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.6rem;
+  font-family: var(--mono);
+}
+.sidebar-divider { height: 1px; background: var(--border); margin: 0.75rem 0.5rem; }
+
+.run-btn {
+  width: 100%;
+  margin-top: 1.5rem;
+  padding: 0.85rem;
+  background: linear-gradient(135deg, var(--accent), #0099cc);
+  border: none;
+  border-radius: 12px;
+  color: #000;
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.2s;
+  letter-spacing: -0.01em;
+}
+.run-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+.run-btn:active { transform: translateY(0); }
+
+/* ── CONTENT AREA ── */
+.content { overflow-y: auto; }
+
+/* ── PANEL ── */
+.panel { padding: 2rem; }
+.panel-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-bottom: 0.4rem;
+}
+.panel-sub { color: var(--text2); font-size: 0.83rem; margin-bottom: 1.75rem; }
+
+/* ── CARDS ── */
+.option-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  margin-bottom: 1rem;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+.option-card.active-card { border-color: rgba(0,200,255,0.3); }
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  cursor: pointer;
+  user-select: none;
+  background: rgba(255,255,255,0.01);
+}
+.card-head-left { display: flex; align-items: center; gap: 0.75rem; }
+.card-head-icon { font-size: 1.1rem; }
+.card-head-label { font-weight: 600; font-size: 0.9rem; }
+.card-head-desc { font-size: 0.75rem; color: var(--text2); margin-top: 0.1rem; }
+.card-toggle {
+  position: relative;
+  width: 40px; height: 22px;
+  flex-shrink: 0;
+}
+.card-toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+.toggle-slider {
+  position: absolute; inset: 0;
+  background: var(--border2);
+  border-radius: 99px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.toggle-slider::after {
+  content: '';
+  position: absolute;
+  width: 16px; height: 16px;
+  background: #fff;
+  border-radius: 50%;
+  top: 3px; left: 3px;
+  transition: transform 0.2s;
+}
+.card-toggle input:checked + .toggle-slider { background: var(--accent); }
+.card-toggle input:checked + .toggle-slider::after { transform: translateX(18px); }
+.card-body {
+  padding: 0 1.25rem;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease, padding 0.3s ease;
+}
+.card-body.open { max-height: 600px; padding: 0.75rem 1.25rem 1.25rem; }
+
+/* ── FORM ELEMENTS ── */
+.form-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+.form-label { font-size: 0.78rem; color: var(--text2); min-width: 140px; }
+.form-select, .form-input {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  background: var(--card2);
+  color: var(--text);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 0.45rem 0.75rem;
+  outline: none;
+  transition: border-color 0.2s;
+  min-width: 160px;
+}
+.form-select:focus, .form-input:focus { border-color: var(--accent); }
+.form-select option { background: var(--card2); }
+.form-hint { font-size: 0.7rem; color: var(--text3); margin-top: 0.25rem; font-family: var(--mono); }
+
+/* ── COLUMN GRID ── */
+.col-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+.col-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--card2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.76rem;
+  transition: all 0.15s;
+  user-select: none;
+}
+.col-check:hover { border-color: var(--border2); }
+.col-check input { accent-color: var(--accent); cursor: pointer; }
+.col-check.checked { background: var(--accent-dim); border-color: rgba(0,200,255,0.3); color: var(--accent); }
+.col-check-label { font-family: var(--mono); font-size: 0.72rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── PREVIEW TABLE ── */
+.preview-container {
+  padding: 1.5rem 2rem;
+}
+.preview-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.preview-title { font-weight: 700; font-size: 1.1rem; }
+.preview-stats { display: flex; gap: 0.75rem; }
+.stat-chip {
+  font-size: 0.72rem;
+  font-family: var(--mono);
+  padding: 0.3rem 0.7rem;
+  border-radius: 20px;
+  border: 1px solid;
+}
+.stat-chip.green  { color: var(--green);  border-color: rgba(0,229,160,0.3); background: var(--green-dim); }
+.stat-chip.yellow { color: var(--yellow); border-color: rgba(251,191,36,0.3); background: var(--yellow-dim); }
+.stat-chip.red    { color: var(--red);    border-color: rgba(248,113,113,0.3); background: var(--red-dim); }
+.stat-chip.blue   { color: var(--accent); border-color: rgba(0,200,255,0.3); background: var(--accent-dim); }
+
+.table-wrap { overflow: auto; max-height: 400px; border: 1px solid var(--border); border-radius: 12px; }
+table { width: 100%; border-collapse: collapse; font-size: 0.76rem; font-family: var(--mono); }
+thead th {
+  background: var(--surface);
+  color: var(--text2);
+  font-weight: 500;
+  padding: 0.65rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  font-size: 0.68rem;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+tbody tr { border-bottom: 1px solid rgba(255,255,255,0.03); transition: background 0.1s; }
+tbody tr:hover { background: rgba(255,255,255,0.03); }
+tbody td { padding: 0.55rem 1rem; color: var(--text); white-space: nowrap; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
+.cell-error { background: var(--red-dim); color: var(--red); border-radius: 4px; padding: 0.1rem 0.4rem; }
+.cell-warn  { background: var(--yellow-dim); color: var(--yellow); border-radius: 4px; padding: 0.1rem 0.4rem; }
+.cell-ok    { color: var(--green); }
+
+/* ── ISSUES PANEL ── */
+.issues-list { margin-top: 1rem; }
+.issue-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  margin-bottom: 0.5rem;
+  font-size: 0.8rem;
+}
+.issue-item.err { background: var(--red-dim); border: 1px solid rgba(248,113,113,0.2); }
+.issue-item.warn { background: var(--yellow-dim); border: 1px solid rgba(251,191,36,0.2); }
+.issue-item.info { background: var(--accent-dim); border: 1px solid rgba(0,200,255,0.2); }
+.issue-icon { font-size: 1rem; flex-shrink: 0; margin-top: 0.05rem; }
+.issue-msg { flex: 1; }
+.issue-msg strong { display: block; margin-bottom: 0.15rem; }
+.issue-msg span { color: var(--text2); font-size: 0.74rem; font-family: var(--mono); }
+
+/* ── DOWNLOAD SCREEN ── */
+.done-screen {
+  text-align: center;
+  padding: 4rem 2rem;
+}
+.done-icon { font-size: 4rem; margin-bottom: 1.5rem; }
+.done-title { font-size: 2rem; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 0.5rem; }
+.done-title em { font-style: normal; color: var(--green); }
+.done-sub { color: var(--text2); font-size: 0.88rem; margin-bottom: 2.5rem; }
+.done-stats {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 2.5rem;
+}
+.done-stat {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1.25rem 2rem;
+  text-align: center;
+}
+.done-stat-val { font-size: 2rem; font-weight: 700; font-family: var(--mono); }
+.done-stat-lbl { font-size: 0.74rem; color: var(--text2); margin-top: 0.25rem; }
+.download-btns { display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; }
+.dl-btn {
+  padding: 0.85rem 2rem;
+  border-radius: 12px;
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+.dl-btn.primary { background: linear-gradient(135deg, var(--green), #009970); color: #000; }
+.dl-btn.secondary { background: var(--card); border: 1px solid var(--border2); color: var(--text); }
+.dl-btn:hover { opacity: 0.85; transform: translateY(-1px); }
+
+/* ── SECTION SELECTORS ── */
+.section-toggle-group {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+.stg-btn {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 20px;
+  border: 1px solid var(--border2);
+  background: transparent;
+  color: var(--text2);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.stg-btn.sel { background: var(--accent-dim); border-color: rgba(0,200,255,0.3); color: var(--accent); }
+
+/* ── FIND REPLACE ── */
+.fr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+
+/* ── TOAST ── */
+.toast {
+  position: fixed;
+  bottom: 2rem; right: 2rem;
+  background: var(--card2);
+  border: 1px solid var(--border2);
+  border-radius: 12px;
+  padding: 0.9rem 1.25rem;
+  font-size: 0.82rem;
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+  transform: translateY(100px);
+  opacity: 0;
+  transition: all 0.35s cubic-bezier(0.34,1.56,0.64,1);
+}
+.toast.show { transform: translateY(0); opacity: 1; }
+
+/* ── PROGRESS ── */
+.progress-bar-wrap {
+  height: 3px;
+  background: var(--border);
+  border-radius: 99px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--green));
+  border-radius: 99px;
+  transition: width 0.5s ease;
+}
+
+/* ── RESPONSIVE ── */
+@media(max-width: 900px) {
+  .app-layout { grid-template-columns: 1fr; }
+  .sidebar { position: static; height: auto; }
+}
+@media(max-width: 600px) {
+  .fr-grid { grid-template-columns: 1fr; }
+  .panel { padding: 1rem; }
+  .col-grid { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ TOPBAR ══ -->
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-icon">🧹</div>
+    <div class="brand-name">Data <span>Cleansing</span> Software</div>
+  </div>
+  <div class="step-indicator">
+    <div class="step-dot active" id="dot-1"></div>
+    <div class="step-dot" id="dot-2"></div>
+    <div class="step-dot" id="dot-3"></div>
+    <div class="step-dot" id="dot-4"></div>
+    <span id="step-label">Step 1 of 4 · Upload</span>
+  </div>
+</div>
+
+<!-- ═══════════════ SCREEN 1: UPLOAD ══ -->
+<div id="screen-upload" class="screen active">
+  <div class="upload-panel">
+    <div class="upload-heading">
+      <h1>Clean Your <em>Data</em> Instantly</h1>
+      <p>Upload any Excel or CSV file. Configure cleansing rules.<br>Download a clean, validated dataset in seconds.</p>
+    </div>
+    <div class="drop-zone" id="drop-zone">
+      <input type="file" id="file-input" accept=".xlsx,.xls,.csv" />
+      <div class="dz-icon">📂</div>
+      <div class="dz-cta">Click to browse or drag &amp; drop</div>
+      <div class="dz-sub">.xlsx · .xls · .csv &nbsp;|&nbsp; Up to 25 MB</div>
+    </div>
+    <div class="upload-features">
+      <div class="uf-item"><span class="uf-icon">✂️</span> Trim & clean text</div>
+      <div class="uf-item"><span class="uf-icon">📅</span> Date normalization</div>
+      <div class="uf-item"><span class="uf-icon">🔍</span> Duplicate detection</div>
+      <div class="uf-item"><span class="uf-icon">✅</span> Validation rules</div>
+      <div class="uf-item"><span class="uf-icon">🔢</span> Number formatting</div>
+      <div class="uf-item"><span class="uf-icon">📤</span> Export Excel / CSV</div>
+    </div>
+    <p id="upload-err" style="color:var(--red);font-size:0.78rem;margin-top:1rem;display:none;text-align:center;"></p>
+  </div>
+</div>
+
+<!-- ═══════════════ SCREEN 2: CONFIGURE ══ -->
+<div id="screen-configure" class="screen">
+  <div class="app-layout">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-header">Navigation</div>
+        <div class="sidebar-item active" onclick="navTo('sec-text')">
+          <span class="si-icon">✏️</span> Text Cleansing
+        </div>
+        <div class="sidebar-item" onclick="navTo('sec-date')">
+          <span class="si-icon">📅</span> Date & Time
+        </div>
+        <div class="sidebar-item" onclick="navTo('sec-period')">
+          <span class="si-icon">🗓️</span> Period Formats
+        </div>
+        <div class="sidebar-item" onclick="navTo('sec-number')">
+          <span class="si-icon">🔢</span> Numbers
+        </div>
+        <div class="sidebar-item" onclick="navTo('sec-validation')">
+          <span class="si-icon">✅</span> Validation
+        </div>
+        <div class="sidebar-item" onclick="navTo('sec-mandatory')">
+          <span class="si-icon">🔴</span> Mandatory Columns
+        </div>
+        <div class="sidebar-item" onclick="navTo('sec-gtZero')">
+          <span class="si-icon">📈</span> Greater Than Zero
+        </div>
+        <div class="sidebar-item" onclick="navTo('sec-duplicates')">
+          <span class="si-icon">🔁</span> Duplicates
+        </div>
+        <div class="sidebar-item" onclick="navTo('sec-findreplace')">
+          <span class="si-icon">🔍</span> Find & Replace
+        </div>
+        <div class="sidebar-item" onclick="navTo('sec-advanced')">
+          <span class="si-icon">⚙️</span> Advanced
+        </div>
+      </div>
+
+      <div class="sidebar-divider"></div>
+
+      <div style="padding: 0 0.25rem;">
+        <div style="font-size:0.72rem;color:var(--text2);margin-bottom:0.75rem;font-family:var(--mono);">
+          📄 <span id="sb-filename" style="color:var(--accent)">—</span><br>
+          <span id="sb-stats" style="color:var(--text3)">—</span>
+        </div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar-fill" id="rules-progress" style="width:0%"></div>
+        </div>
+        <div style="font-size:0.68rem;color:var(--text3);font-family:var(--mono);" id="rules-count">0 rules active</div>
+      </div>
+
+      <button class="run-btn" onclick="runCleanse()">▶ Run Cleanse &amp; Preview</button>
+    </div>
+
+    <!-- CONTENT -->
+    <div class="content" id="config-content">
+      <div class="panel">
+        <!-- ─ TEXT CLEANSING ─ -->
+        <div id="sec-text">
+          <div class="panel-title">✏️ Text Cleansing</div>
+          <div class="panel-sub">Apply string transformations to clean up text fields across all or selected columns.</div>
+
+          <div class="option-card" id="oc-trim-lead">
+            <div class="card-head" onclick="toggleCard('trim-lead')">
+              <div class="card-head-left">
+                <span class="card-head-icon">⬅️</span>
+                <div>
+                  <div class="card-head-label">Remove Leading Spaces</div>
+                  <div class="card-head-desc">Strips whitespace from the start of cell values</div>
+                </div>
+              </div>
+              <label class="card-toggle" onclick="e=>e.stopPropagation()">
+                <input type="checkbox" id="chk-trim-lead" onchange="updateRulesCount()">
+                <div class="toggle-slider"></div>
+              </label>
+            </div>
+            <div class="card-body" id="cb-trim-lead">
+              <div class="form-row">
+                <span class="form-label">Apply to columns</span>
+                <div class="section-toggle-group">
+                  <button class="stg-btn sel" onclick="setColScope('trim-lead','all',this)">All</button>
+                  <button class="stg-btn" onclick="setColScope('trim-lead','select',this)">Select columns</button>
+                </div>
+              </div>
+              <div class="col-grid" id="cols-trim-lead" style="display:none"></div>
+            </div>
+          </div>
+
+          <div class="option-card" id="oc-trim-trail">
+            <div class="card-head" onclick="toggleCard('trim-trail')">
+              <div class="card-head-left">
+                <span class="card-head-icon">➡️</span>
+                <div>
+                  <div class="card-head-label">Remove Trailing Spaces</div>
+                  <div class="card-head-desc">Strips whitespace from the end of cell values</div>
+                </div>
+              </div>
+              <label class="card-toggle">
+                <input type="checkbox" id="chk-trim-trail" onchange="updateRulesCount()">
+                <div class="toggle-slider"></div>
+              </label>
+            </div>
+            <div class="card-body" id="cb-trim-trail">
+              <div class="form-row">
+                <span class="form-label">Apply to columns</span>
+                <div class="section-toggle-group">
+                  <button class="stg-btn sel" onclick="setColScope('trim-trail','all',this)">All</button>
+                  <button class="stg-btn" onclick="setColScope('trim-trail','select',this)">Select columns</button>
+                </div>
+              </div>
+              <div class="col-grid" id="cols-trim-trail" style="display:none"></div>
+            </div>
+          </div>
+
+          <div class="option-card" id="oc-trim-extra">
+            <div class="card-head" onclick="toggleCard('trim-extra')">
+              <div class="card-head-left">
+                <span class="card-head-icon">↔️</span>
+                <div>
+                  <div class="card-head-label">Remove Extra / Double Spaces</div>
+                  <div class="card-head-desc">Collapses multiple consecutive spaces into one</div>
+                </div>
+              </div>
+              <label class="card-toggle">
+                <input type="checkbox" id="chk-trim-extra" onchange="updateRulesCount()">
+                <div class="toggle-slider"></div>
+              </label>
+            </div>
+            <div class="card-body" id="cb-trim-extra">
+              <div class="form-row">
+                <span class="form-label">Apply to columns</span>
+                <div class="section-toggle-group">
+                  <button class="stg-btn sel" onclick="setColScope('trim-extra','all',this)">All</button>
+                  <button class="stg-btn" onclick="setColScope('trim-extra','select',this)">Select columns</button>
+                </div>
+              </div>
+              <div class="col-grid" id="cols-trim-extra" style="display:none"></div>
+            </div>
+          </div>
+
+          <div class="option-card" id="oc-case">
+            <div class="card-head" onclick="toggleCard('case')">
+              <div class="card-head-left">
+                <span class="card-head-icon">🔠</span>
+                <div>
+                  <div class="card-head-label">Case Conversion</div>
+                  <div class="card-head-desc">Convert text to UPPER, lower or Title Case</div>
+                </div>
+              </div>
+              <label class="card-toggle">
+                <input type="checkbox" id="chk-case" onchange="updateRulesCount()">
+                <div class="toggle-slider"></div>
+              </label>
+            </div>
+            <div class="card-body" id="cb-case">
+              <div class="form-row">
+                <span class="form-label">Convert to</span>
+                <select class="form-select" id="sel-case">
+                  <option value="upper">UPPERCASE</option>
+                  <option value="lower">lowercase</option>
+                  <option value="title">Title Case</option>
+                  <option value="sentence">Sentence case</option>
+                </select>
+              </div>
+              <div class="form-row">
+                <span class="form-label">Apply to columns</span>
+                <div class="section-toggle-group">
+                  <button class="stg-btn sel" onclick="setColScope('case','all',this)">All</button>
+                  <button class="stg-btn" onclick="setColScope('case','select',this)">Select columns</button>
+                </div>
+              </div>
+              <div class="col-grid" id="cols-case" style="display:none"></div>
+            </div>
+          </div>
+
+          <div class="option-card" id="oc-special">
+            <div class="card-head" onclick="toggleCard('special')">
+              <div class="card-head-left">
+                <span class="card-head-icon">🚫</span>
+                <div>
+                  <div class="card-head-label">Remove Special Characters</div>
+                  <div class="card-head-desc">Strip unwanted symbols, control chars or custom patterns</div>
+                </div>
+              </div>
+              <label class="card-toggle">
+                <input type="checkbox" id="chk-special" onchange="updateRulesCount()">
+                <div class="toggle-slider"></div>
+              </label>
+            </div>
+            <div class="card-body" id="cb-special">
+              <div class="form-row">
+                <span class="form-label">Remove</span>
+                <select class="form-select" id="sel-special">
+                  <option value="nonalpha">Non-alphanumeric (keep spaces)</option>
+                  <option value="nonword">Non-word characters</option>
+                  <option value="custom">Custom regex pattern</option>
+                </select>
+              </div>
+              <div class="form-row" id="fr-custom-pattern" style="display:none">
+                <span class="form-label">Pattern (regex)</span>
+                <input type="text" class="form-input" id="inp-custom-pattern" placeholder="e.g. [#@!]" />
+              </div>
+              <div class="form-row">
+                <span class="form-label">Apply to columns</span>
+                <div class="section-toggle-group">
+                  <button class="stg-btn sel" onclick="setColScope('special','all',this)">All</button>
+                  <button class="stg-btn" onclick="setColScope('special','select',this)">Select columns</button>
+                </div>
+              </div>
+              <div class="col-grid" id="cols-special" style="display:none"></div>
+            </div>
+          </div>
+
+          <div class="option-card" id="oc-fillblank">
+            <div class="card-head" onclick="toggleCard('fillblank')">
+              <div class="card-head-left">
+                <span class="card-head-icon">📝</span>
+                <div>
+                  <div class="card-head-label">Fill Blank Cells</div>
+                  <div class="card-head-desc">Replace empty / null cells with a default value</div>
+                </div>
+              </div>
+              <label class="card-toggle">
+                <input type="checkbox" id="chk-fillblank" onchange="updateRulesCount()">
+                <div class="toggle-slider"></div>
+              </label>
+            </div>
+            <div class="card-body" id="cb-fillblank">
+              <div class="form-row">
+                <span class="form-label">Fill text cols with</span>
+                <input type="text" class="form-input" id="inp-fill-text" placeholder="N/A" style="width:120px;" />
+              </div>
+              <div class="form-row">
+                <span class="form-label">Fill numeric cols with</span>
+                <input type="number" class="form-input" id="inp-fill-num" placeholder="0" style="width:100px;" />
+              </div>
+              <div class="form-row">
+                <span class="form-label">Apply to columns</span>
+                <div class="section-toggle-group">
+                  <button class="stg-btn sel" onclick="setColScope('fillblank','all',this)">All</button>
+                  <button class="stg-btn" onclick="setColScope('fillblank','select',this)">Select columns</button>
+                </div>
+              </div>
+              <div class="col-grid" id="cols-fillblank" style="display:none"></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="height:2rem"></div>
+
+        <!-- ─ DATE ─ -->
+        <div id="sec-date">
+          <div class="panel-title">📅 Date & Time Formatting</div>
+          <div class="panel-sub">Standardize date columns to a consistent output format.</div>
+          <div class="option-card" id="oc-date">
+            <div class="card-head" onclick="toggleCard('date')">
+              <div class="card-head-left">
+                <span class="card-head-icon">📅</span>
+                <div>
+                  <div class="card-head-label">Normalize Date Format</div>
+                  <div class="card-head-desc">Convert all date values to a standard output format</div>
+                </div>
+              </div>
+              <label class="card-toggle">
+                <input type="checkbox" id="chk-date" onchange="updateRulesCount()">
+                <div class="toggle-slider"></div>
+              </label>
+            </div>
+            <div class="card-body" id="cb-date">
+              <div class="form-row">
+                <span class="form-label">Output date format</span>
+                <select class="form-select" id="sel-date-fmt">
+                  <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                  <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                  <option value="YYYY-MM-DD">YYYY-MM-DD (ISO)</option>
+                  <option value="DD-MM-YYYY">DD-MM-YYYY</option>
+                  <option value="DD.MM.YYYY">DD.MM.YYYY</option>
+                  <option value="D MMM YYYY">D MMM YYYY (1 Jan 2024)</option>
+                  <option value="DD MMM YYYY">DD MMM YYYY</option>
+                  <option value="MMM DD, YYYY">MMM DD, YYYY</option>
+                </select>
+              </div>
+              <div class="form-row">
+                <span class="form-label">Apply to columns</span>
+                <div class="section-toggle-group">
+                  <button class="stg-btn sel" onclick="setColScope('date','all',this)">All date cols</button>
+                  <button class="stg-btn" onclick="setColScope('date','select',this)">Select columns</button>
+                </div>
+              </div>
+              <div class="col-grid" id="cols-date" style="display:none"></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="height:2rem"></div>
+
+        <!-- ─ PERIOD FORMATS ─ -->
+        <div id="sec-period">
+          <div class="panel-title">🗓️ Period Formats</div>
+          <div class="panel-sub">Add or reformat Quarter, Month, and Year columns derived from date fields.</div>
+
+          <div class="option-card" id="oc-quarter">
+            <div class="card-head" onclick="toggleCard('quarter')">
+              <div class="card-head-left">
+                <span class="card-head-icon">🗂️</span>
+                <div>
+                  <div class="card-head-label">Quarter Format</div>
+                  <div class="card-head-desc">Derive or standardize quarter values</div>
+                </div>
+              </div>
+              <label class="card-toggle">
+                <input type="checkbox" id="chk-quarter" onchange="updateRulesCount()">
+                <div class="toggle-slider"></div>
+              </label>
+            </div>
+            <div class="card-body" id="cb-quarter">
+              <div class="form-row">
+                <span class="form-label">Source column</span>
+                <select class="form-select" id="sel-quarter-src"><option value="">— select —</option></select>
+              </div>
+              <div class="form-row">
+                <span class="form-label">Quarter format</span>
+                <select class="form-select" id="sel-quarter-fmt">
+                  <option value="Q#">Q1, Q2, Q3, Q4</option>
+                  <option value="Qtr #">Qtr 1, Qtr 2 …</option>
+                  <option value="Quarter #">Quarter 1 …</option>
+                  <option value="#Q">1Q, 2Q, 3Q, 4Q</option>
+                  <option value="Q#-YYYY">Q1-2024, Q2-2024 …</option>
+                  <option value="YYYY-Q#">2024-Q1, 2024-Q2 …</option>
+                  <option value="#">1, 2, 3, 4 (numeric)</option>
+                </select>
+              </div>
+              <div class="form-row">
+                <span class="form-label">Output column name</span>
+                <input type="text" class="form-input" id="inp-quarter-col" placeholder="Quarter" />
+              </div>
+            </div>
+          </div>
+
+          <div class="option-card" id="oc-month">
+            <div class="card-head" onclick="toggleCard('month')">
+              <div class="card-head-left">
+                <span class="card-head-icon">📆</span>
+                <div>
+                  <div class="card-head-label">Month Format</div>
+                  <div class="card-head-desc">Derive or standardize month values</div>
+                </div>
+              </div>
+              <label class="card-toggle">
+                <input type="checkbox" id="chk-month" onchange="updateRulesCount()">
+                <div class="toggle-slider"></div>
+              </label>
+            </div>
+            <div class="card-body" id="cb-month">
+              <div class="form-row">
+                <span class="form-label">Source column</span>
+                <select class="form-select" id="sel-month-src"><option value="">— select —</option></select>
+              </div>
+              <div class="form-row">
+                <span class="form-label">Month format</span>
+                <select class="form-select" id="sel-month-fmt">
+                  <option value="MMM">Jan, Feb … (short)</option>
+                  <option value="MMMM">January, February … (long)</option>
+                  <option value="MM">01, 02 … (zero-padded)</option>
+                  <option value="M">1, 2 … (numeric)</option>
+                  <option value="MMM-YYYY">Jan-2024</option>
+                  <option value="MMMM YYYY">January 2024</option>
+                </select>
+              </div>
+              <div class="form-row">
+                <span class="form-label">Output column name</span>
+                <input type="text" class="form-input" id="inp-month-col" placeholder="Month" />
+              </div>
+            </div>
+          </div>
+
+          <div class="option-card" id="oc-year">
+            <div class="card-head" onclick="toggleCard('year')">
+              <div class="card-head-left">
+                <span class="card-head-icon">📊</span>
+                <div>
+                  <div class="card-head-label">Year Format</div>
+                  <div class="card-head-desc">Derive or standardize year values</div>
+                </div>
+              </div>
+              <label class="card-toggle">
+                <input type="checkbox" id="chk-year" onchange="updateRulesCount()">
+                <div class="toggle-slider"></div>
+              </label>
+            </div>
+            <div class="card-body" id="cb-year">
+              <div class="form-row">
+                <span class="form-label">Source column</span>
+                <select class="form-select" id="sel-year-src"><option value="">— select —</option></select>
+              </div>
+              <div class="form-row">
+                <span class="form-label">Year format</span>
+                <select class="form-select" id="sel-year-fmt">
+                  <option value="YYYY">YYYY (2024)</option>
+                  <option value="YY">YY (24)</option>
+                  <option value="FY-YYYY">FY 2024-25 (Apr–Mar)</option>
+                  <option value="CY-YYYY">CY 2024</option>
+                </select>
+              </div>
+              <div class="form-row">
+                <span class="form-label">Output column name</span>
+                <input type="text" class="form-input" id="inp-year-col" placeholder="Year" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="height:2rem"></div>
+
+        <!-- ─ NUMBERS ─ -->
+        <div id="sec-number">
+          <div class="panel-title">🔢 Number Formatting</div>
+          <div class="panel-sub">Clean and standardize numeric values across columns.</div>
+
+          <div class="option-card" id="oc-numclean">
+            <div class="card-head" onclick="toggleCard('numclean')">
+              <div class="card-head-left">
+                <span class="card-head-icon">🧮</span>
+                <div>
+                  <div class="card-head-label">Clean Numbers</div>
+                  <div class="card-head-desc">Remove currency symbols, commas; convert text-numbers to numeric</div>
+                </div>
+              </div>
+              <label class="card-toggle">
+                <input type="checkbox" id="chk-numclean" onchange="updateRulesCount()">
+                <div class="toggle-slider"></div>
+              </label>
+            </div>
+            <div class="card-body" id="cb-numclean">
+              <div class="form-row">
+                <span class="form-label">Remove currency symbol</span>
+                <input type="text" class="form-input" id="inp-currency" placeholder="₹ $ € £" style="width:100px;" />
+              </div>
+              <div class="form-row">
+                <span class="form-label">Decimal places</span>
+                <select class="form-select" id="sel-decimals" style="width:120px;">
+                  <option value="-1">No change</option>
+                  <option value="0">0</option>
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                </select>
+              </div>
+              <div class="form-row">
+                <span class="form-label">Apply to columns</span>
+                <div class="section-toggle-group">
+                  <button class="stg-btn sel" onclick="setColScope('numclean','all',this)">All</button>
+                  <button class="stg-btn" onclick="setColScope('numclean','select',this)">Select columns</button>
+                </div>
+              </div>
+              <div class="col-grid" id="cols-numclean" style="display:none"></div>
+            </div>
+          </div>
+
+          <div class="option-card" id="oc-numrange">
+            <div class="card-head" onclick="toggleCard('numrange')">
+              <div class="card-head-left">
+                <span class="card-head-icon">📏</span>
+                <div>
+                  <div class="card-head-label">Cap / Floor Values (Min-Max)</div>
+                  <div class="card-head-desc">Clamp numeric values within a defined range</div>
+                </div>
+              </div>
+              <label class="card-toggle">
+                <input type="checkbox" id="chk-numrange" onchange="updateRulesCount()">
+                <div class="toggle-slider"></div>
+              </label>
+            </div>
+            <div class="card-body" id="cb-numrange">
+              <div class="form-row">
+                <span class="form-label">Minimum value</span>
+                <input type="number" class="form-input" id="inp-min-val" placeholder="Leave blank = no floor" style="width:180px;" />
+              </div>
+              <div class="form-row">
+                <span class="form-label">Maximum value</span>
+                <input type="number" class="form-input" id="inp-max-val" placeholder="Leave blank = no cap" style="width:180px;" />
+              </div>
+              <div class="form-row">
+                <span class="form-label">Apply to columns</span>
+                <div class="section-toggle-group">
+                  <button class="stg-btn sel" onclick="setColScope('numrange','all',this)">All numeric</button>
+                  <button class="stg-btn" onclick="setColScope('numrange','select',this)">Select columns</button>
+                </div>
+              </div>
+              <div class="col-grid" id="cols-numrange" style="display:none"></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="height:2rem"></div>
+
+        <!-- ─ VALIDATION ─ -->
+        <div id="sec-validation">
+          <div class="panel-title">✅ Data Validation</div>
+          <div class="panel-sub">Flag or remove invalid records. Results shown in preview.</div>
+
+          <div class="option-card" id="oc-email">
+            <div class="card-head" onclick="toggleCard('email')">
+              <div class="card-head-left">
+                <span class="card-head-icon">📧</span>
+                <div>
+                  <div class="card-head-label">Email Validation</div>
+                  <div class="card-head-desc">Flag cells that are not valid email addresses</div>
+                </div>
+              </div>
+              <label class="card-toggle">
+                <input type="checkbox" id="chk-email" onchange="updateRulesCount()">
+                <div class="toggle-slider"></div>
+              </label>
+            </div>
+            <div class="card-body" id="cb-email">
+              <div class="form-row">
+                <span class="form-label">Email column(s)</span>
+                <div class="col-grid" id="cols-email"></div>
+              </div>
+              <div class="form-row">
+                <span class="form-label">On invalid</span>
+                <select class="form-select" id="sel-email-action">
+                  <option value="flag">Flag in output (keep row)</option>
+                  <option value="blank">Clear invalid value</option>
+                  <option value="remove">Remove row</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="option-card" id="oc-phone">
+            <div class="card-head" onclick="toggleCard('phone')">
+              <div class="card-head-left">
+                <span class="card-head-icon">📞</span>
+                <div>
+                  <div class="card-head-label">Phone Number Standardization</div>
+                  <div class="card-head-desc">Normalize phone numbers to a consistent format</div>
+                </div>
+              </div>
+              <label class="card-toggle">
+                <input type="checkbox" id="chk-phone" onchange="updateRulesCount()">
+                <div class="toggle-slider"></div>
+              </label>
+            </div>
+            <div class="card-body" id="cb-phone">
+              <div class="form-row">
+                <span class="form-label">Phone column(s)</span>
+                <div class="col-grid" id="cols-phone"></div>
+              </div>
+              <div class="form-row">
+                <span class="form-label">Output format</span>
+                <select class="form-select" id="sel-phone-fmt">
+                  <option value="digits">Digits only (9876543210)</option>
+                  <option value="dashes">XXX-XXX-XXXX</option>
+                  <option value="country">+91-XXXXXXXXXX</option>
+                  <option value="dots">XXX.XXX.XXXX</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="option-card" id="oc-boolean">
+            <div class="card-head" onclick="toggleCard('boolean')">
+              <div class="card-head-left">
+                <span class="card-head-icon">🔄</span>
+                <div>
+                  <div class="card-head-label">Standardize Boolean / Flag Values</div>
+                  <div class="card-head-desc">Convert Yes/No, y/n, 1/0, TRUE/FALSE to a uniform format</div>
+                </div>
+              </div>
+              <label class="card-toggle">
+                <input type="checkbox" id="chk-boolean" onchange="updateRulesCount()">
+                <div class="toggle-slider"></div>
+              </label>
+            </div>
+            <div class="card-body" id="cb-boolean">
+              <div class="form-row">
+                <span class="form-label">Output format</span>
+                <select class="form-select" id="sel-bool-fmt">
+                  <option value="YN">Y / N</option>
+                  <option value="YesNo">Yes / No</option>
+                  <option value="10">1 / 0</option>
+                  <option value="TF">TRUE / FALSE</option>
+                </select>
+              </div>
+              <div class="form-row">
+                <span class="form-label">Apply to columns</span>
+                <div class="section-toggle-group">
+                  <button class="stg-btn sel" onclick="setColScope('boolean','all',this)">All</button>
+                  <button class="stg-btn" onclick="setColScope('boolean','select',this)">Select columns</button>
+                </div>
+              </div>
+              <div class="col-grid" id="cols-boolean" style="display:none"></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="height:2rem"></div>
+
+        <!-- ─ MANDATORY ─ -->
+        <div id="sec-mandatory">
+          <div class="panel-title">🔴 Mandatory Columns</div>
+          <div class="panel-sub">Select which columns must not be empty. Rows with missing values will be flagged.</div>
+          <div class="option-card" style="border-color:rgba(248,113,113,0.2);">
+            <div class="card-head" onclick="toggleCard('mandatory')">
+              <div class="card-head-left">
+                <span class="card-head-icon">📌</span>
+                <div>
+                  <div class="card-head-label">Required / Mandatory Fields</div>
+                  <div class="card-head-desc">Flag or remove rows where selected columns are empty</div>
+                </div>
+              </div>
+              <label class="card-toggle">
+                <input type="checkbox" id="chk-mandatory" onchange="updateRulesCount()">
+                <div class="toggle-slider"></div>
+              </label>
+            </div>
+            <div class="card-body" id="cb-mandatory">
+              <div class="col-grid" id="cols-mandatory"></div>
+              <div class="form-row" style="margin-top:0.75rem;">
+                <span class="form-label">On violation</span>
+                <select class="form-select" id="sel-mandatory-action">
+                  <option value="flag">Flag row (keep)</option>
+                  <option value="remove">Remove row</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="height:2rem"></div>
+
+        <!-- ─ GREATER THAN ZERO ─ -->
+        <div id="sec-gtZero">
+          <div class="panel-title">📈 Greater Than Zero</div>
+          <div class="panel-sub">Validate that numeric values in selected columns are positive (> 0).</div>
+          <div class="option-card" style="border-color:rgba(251,191,36,0.2);">
+            <div class="card-head" onclick="toggleCard('gtZero')">
+              <div class="card-head-left">
+                <span class="card-head-icon">➕</span>
+                <div>
+                  <div class="card-head-label">Positive Value Enforcement</div>
+                  <div class="card-head-desc">Flag rows where column value is zero, negative or blank</div>
+                </div>
+              </div>
+              <label class="card-toggle">
+                <input type="checkbox" id="chk-gtZero" onchange="updateRulesCount()">
+                <div class="toggle-slider"></div>
+              </label>
+            </div>
+            <div class="card-body" id="cb-gtZero">
+              <div class="col-grid" id="cols-gtZero"></div>
+              <div class="form-row" style="margin-top:0.75rem;">
+                <span class="form-label">On violation</span>
+                <select class="form-select" id="sel-gtZero-action">
+                  <option value="flag">Flag row (keep)</option>
+                  <option value="remove">Remove row</option>
+                  <option value="zero">Replace with 0</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="height:2rem"></div>
+
+        <!-- ─ DUPLICATES ─ -->
+        <div id="sec-duplicates">
+          <div class="panel-title">🔁 Duplicate Detection</div>
+          <div class="panel-sub">Find and remove or flag duplicate rows.</div>
+          <div class="option-card" id="oc-dupes">
+            <div class="card-head" onclick="toggleCard('dupes')">
+              <div class="card-head-left">
+                <span class="card-head-icon">🪞</span>
+                <div>
+                  <div class="card-head-label">Remove / Flag Duplicates</div>
+                  <div class="card-head-desc">Based on all columns or a key-column subset</div>
+                </div>
+              </div>
+              <label class="card-toggle">
+                <input type="checkbox" id="chk-dupes" onchange="updateRulesCount()">
+                <div class="toggle-slider"></div>
+              </label>
+            </div>
+            <div class="card-body" id="cb-dupes">
+              <div class="form-row">
+                <span class="form-label">Detect duplicates on</span>
+                <div class="section-toggle-group">
+                  <button class="stg-btn sel" onclick="setColScope('dupes','all',this)">All columns</button>
+                  <button class="stg-btn" onclick="setColScope('dupes','select',this)">Key columns only</button>
+                </div>
+              </div>
+              <div class="col-grid" id="cols-dupes" style="display:none"></div>
+              <div class="form-row" style="margin-top:0.5rem;">
+                <span class="form-label">On duplicate</span>
+                <select class="form-select" id="sel-dupes-action">
+                  <option value="remove">Keep first, remove rest</option>
+                  <option value="keep-last">Keep last, remove rest</option>
+                  <option value="flag">Flag all duplicates (keep)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="height:2rem"></div>
+
+        <!-- ─ FIND & REPLACE ─ -->
+        <div id="sec-findreplace">
+          <div class="panel-title">🔍 Find &amp; Replace</div>
+          <div class="panel-sub">Bulk text substitution across selected columns. Add multiple rules.</div>
+          <div class="option-card" id="oc-fr">
+            <div class="card-head" onclick="toggleCard('fr')">
+              <div class="card-head-left">
+                <span class="card-head-icon">🔄</span>
+                <div>
+                  <div class="card-head-label">Find &amp; Replace Rules</div>
+                  <div class="card-head-desc">Multiple search-replace pairs, with optional regex</div>
+                </div>
+              </div>
+              <label class="card-toggle">
+                <input type="checkbox" id="chk-fr" onchange="updateRulesCount()">
+                <div class="toggle-slider"></div>
+              </label>
+            </div>
+            <div class="card-body" id="cb-fr">
+              <div id="fr-rules-list"></div>
+              <button onclick="addFrRule()" style="font-family:var(--mono);font-size:0.76rem;background:var(--accent-dim);color:var(--accent);border:1px solid rgba(0,200,255,0.2);border-radius:8px;padding:0.4rem 1rem;cursor:pointer;margin-top:0.5rem;">+ Add Rule</button>
+              <div class="form-row" style="margin-top:1rem;">
+                <span class="form-label">Apply to columns</span>
+                <div class="section-toggle-group">
+                  <button class="stg-btn sel" onclick="setColScope('fr','all',this)">All</button>
+                  <button class="stg-btn" onclick="setColScope('fr','select',this)">Select columns</button>
+                </div>
+              </div>
+              <div class="col-grid" id="cols-fr" style="display:none"></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="height:2rem"></div>
+
+        <!-- ─ ADVANCED ─ -->
+        <div id="sec-advanced">
+          <div class="panel-title">⚙️ Advanced Options</div>
+          <div class="panel-sub">Additional cleansing operations for power users.</div>
+
+          <div class="option-card" id="oc-emptyrows">
+            <div class="card-head" onclick="toggleCard('emptyrows')">
+              <div class="card-head-left">
+                <span class="card-head-icon">🗑️</span>
+                <div>
+                  <div class="card-head-label">Remove Blank Rows</div>
+                  <div class="card-head-desc">Delete rows where all cells are empty</div>
+                </div>
+              </div>
+              <label class="card-toggle">
+                <input type="checkbox" id="chk-emptyrows" onchange="updateRulesCount()">
+                <div class="toggle-slider"></div>
+              </label>
+            </div>
+            <div class="card-body" id="cb-emptyrows">
+              <div class="form-row">
+                <span class="form-label">Row is blank if</span>
+                <select class="form-select" id="sel-emptyrows">
+                  <option value="all">ALL cells are empty</option>
+                  <option value="most">More than 50% cells empty</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="option-card" id="oc-html">
+            <div class="card-head" onclick="toggleCard('html')">
+              <div class="card-head-left">
+                <span class="card-head-icon">🏷️</span>
+                <div>
+                  <div class="card-head-label">Strip HTML Tags</div>
+                  <div class="card-head-desc">Remove &lt;b&gt;, &lt;span&gt; and other HTML markup from text</div>
+                </div>
+              </div>
+              <label class="card-toggle">
+                <input type="checkbox" id="chk-html" onchange="updateRulesCount()">
+                <div class="toggle-slider"></div>
+              </label>
+            </div>
+            <div class="card-body" id="cb-html">
+              <div class="form-row">
+                <span class="form-label">Apply to columns</span>
+                <div class="section-toggle-group">
+                  <button class="stg-btn sel" onclick="setColScope('html','all',this)">All</button>
+                  <button class="stg-btn" onclick="setColScope('html','select',this)">Select columns</button>
+                </div>
+              </div>
+              <div class="col-grid" id="cols-html" style="display:none"></div>
+            </div>
+          </div>
+
+          <div class="option-card" id="oc-rowidx">
+            <div class="card-head" onclick="toggleCard('rowidx')">
+              <div class="card-head-left">
+                <span class="card-head-icon">🔢</span>
+                <div>
+                  <div class="card-head-label">Add Row Index Column</div>
+                  <div class="card-head-desc">Prepend a sequential row number column to the output</div>
+                </div>
+              </div>
+              <label class="card-toggle">
+                <input type="checkbox" id="chk-rowidx" onchange="updateRulesCount()">
+                <div class="toggle-slider"></div>
+              </label>
+            </div>
+            <div class="card-body" id="cb-rowidx">
+              <div class="form-row">
+                <span class="form-label">Column name</span>
+                <input type="text" class="form-input" id="inp-rowidx-name" placeholder="Row_No" style="width:120px;" />
+              </div>
+              <div class="form-row">
+                <span class="form-label">Start from</span>
+                <input type="number" class="form-input" id="inp-rowidx-start" value="1" style="width:80px;" />
+              </div>
+            </div>
+          </div>
+
+          <div class="option-card" id="oc-pincode">
+            <div class="card-head" onclick="toggleCard('pincode')">
+              <div class="card-head-left">
+                <span class="card-head-icon">📮</span>
+                <div>
+                  <div class="card-head-label">Pad / Zero-fill Codes</div>
+                  <div class="card-head-desc">Ensure PIN codes, account numbers or IDs have fixed length</div>
+                </div>
+              </div>
+              <label class="card-toggle">
+                <input type="checkbox" id="chk-pincode" onchange="updateRulesCount()">
+                <div class="toggle-slider"></div>
+              </label>
+            </div>
+            <div class="card-body" id="cb-pincode">
+              <div class="form-row">
+                <span class="form-label">Target length</span>
+                <input type="number" class="form-input" id="inp-pad-len" placeholder="6" style="width:80px;" />
+              </div>
+              <div class="form-row">
+                <span class="form-label">Pad character</span>
+                <input type="text" class="form-input" id="inp-pad-char" placeholder="0" style="width:60px;" maxlength="1" />
+              </div>
+              <div class="form-row">
+                <span class="form-label">Apply to columns</span>
+                <div class="section-toggle-group">
+                  <button class="stg-btn sel" onclick="setColScope('pincode','all',this)">All</button>
+                  <button class="stg-btn" onclick="setColScope('pincode','select',this)">Select columns</button>
+                </div>
+              </div>
+              <div class="col-grid" id="cols-pincode" style="display:none"></div>
+            </div>
+          </div>
+
+          <div class="option-card" id="oc-addstatus">
+            <div class="card-head" onclick="toggleCard('addstatus')">
+              <div class="card-head-left">
+                <span class="card-head-icon">🏷️</span>
+                <div>
+                  <div class="card-head-label">Add Cleanse Status Column</div>
+                  <div class="card-head-desc">Append a column showing PASS / FAIL / WARN for each row</div>
+                </div>
+              </div>
+              <label class="card-toggle">
+                <input type="checkbox" id="chk-addstatus" onchange="updateRulesCount()">
+                <div class="toggle-slider"></div>
+              </label>
+            </div>
+            <div class="card-body" id="cb-addstatus">
+              <div class="form-row">
+                <span class="form-label">Column name</span>
+                <input type="text" class="form-input" id="inp-status-col" placeholder="Cleanse_Status" style="width:180px;" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="height:3rem"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ SCREEN 3: PREVIEW ══ -->
+<div id="screen-preview" class="screen">
+  <div class="preview-container">
+    <div class="preview-toolbar">
+      <div>
+        <div class="preview-title">📊 Cleanse Preview</div>
+        <div style="font-size:0.78rem;color:var(--text2);margin-top:0.2rem;">Showing first 100 rows · Issues highlighted</div>
+      </div>
+      <div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;">
+        <div class="preview-stats">
+          <span class="stat-chip blue" id="prev-total">0 rows</span>
+          <span class="stat-chip green" id="prev-clean">0 clean</span>
+          <span class="stat-chip yellow" id="prev-warn">0 warnings</span>
+          <span class="stat-chip red" id="prev-err">0 errors</span>
+        </div>
+        <button onclick="goDownload()" style="font-family:var(--sans);font-size:0.82rem;font-weight:700;background:linear-gradient(135deg,var(--green),#009970);color:#000;border:none;border-radius:10px;padding:0.6rem 1.25rem;cursor:pointer;">
+          ✅ Accept &amp; Download
+        </button>
+        <button onclick="showScreen('screen-configure')" style="font-family:var(--sans);font-size:0.82rem;background:var(--card);border:1px solid var(--border2);color:var(--text);border-radius:10px;padding:0.6rem 1rem;cursor:pointer;">
+          ← Back to Configure
+        </button>
+      </div>
+    </div>
+
+    <!-- Issues -->
+    <div id="issues-container" class="issues-list"></div>
+
+    <!-- Table -->
+    <div class="table-wrap" style="margin-top:1rem;">
+      <table>
+        <thead><tr id="preview-thead"></tr></thead>
+        <tbody id="preview-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ SCREEN 4: DOWNLOAD ══ -->
+<div id="screen-download" class="screen">
+  <div class="done-screen">
+    <div class="done-icon">🎉</div>
+    <div class="done-title">Data <em>Cleansed!</em></div>
+    <div class="done-sub">Your file has been processed. Download below in your preferred format.</div>
+    <div class="done-stats">
+      <div class="done-stat">
+        <div class="done-stat-val" id="dl-total" style="color:var(--accent)">0</div>
+        <div class="done-stat-lbl">Total Rows</div>
+      </div>
+      <div class="done-stat">
+        <div class="done-stat-val" id="dl-clean" style="color:var(--green)">0</div>
+        <div class="done-stat-lbl">Clean Rows</div>
+      </div>
+      <div class="done-stat">
+        <div class="done-stat-val" id="dl-issues" style="color:var(--yellow)">0</div>
+        <div class="done-stat-lbl">Issues Found</div>
+      </div>
+      <div class="done-stat">
+        <div class="done-stat-val" id="dl-removed" style="color:var(--red)">0</div>
+        <div class="done-stat-lbl">Rows Removed</div>
+      </div>
+    </div>
+    <div class="download-btns">
+      <button class="dl-btn primary" onclick="downloadFile('xlsx')">⬇ Download Excel (.xlsx)</button>
+      <button class="dl-btn primary" onclick="downloadFile('csv')" style="background:linear-gradient(135deg,var(--accent),#0099cc);">⬇ Download CSV</button>
+      <button class="dl-btn secondary" onclick="showScreen('screen-upload');resetAll()">↩ Upload New File</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════
+let rawData = [], headers = [], cleanedData = [], fileName = '';
+let colScopes = {};    // {ruleKey: 'all'|[col1,col2...]}
+let frRules   = [];    // [{find, replace, regex}]
+let stats     = { total:0, clean:0, warn:0, err:0, removed:0 };
+
+const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTHS_LONG  = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+// ═══════════════════════════════════════════════════════════
+//  NAVIGATION
+// ═══════════════════════════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  updateStepDots(id);
+}
+function updateStepDots(id) {
+  const map = { 'screen-upload':1, 'screen-configure':2, 'screen-preview':3, 'screen-download':4 };
+  const step = map[id] || 1;
+  const labels = ['Upload','Configure','Preview','Download'];
+  for (let i=1; i<=4; i++) {
+    const d = document.getElementById(`dot-${i}`);
+    d.className = 'step-dot' + (i < step ? ' done' : i === step ? ' active' : '');
+  }
+  document.getElementById('step-label').textContent = `Step ${step} of 4 · ${labels[step-1]}`;
+}
+function navTo(id) {
+  document.getElementById(id).scrollIntoView({ behavior:'smooth', block:'start' });
+  document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active'));
+  const map = {
+    'sec-text':'✏️','sec-date':'📅','sec-period':'🗓️','sec-number':'🔢',
+    'sec-validation':'✅','sec-mandatory':'🔴','sec-gtZero':'📈',
+    'sec-duplicates':'🔁','sec-findreplace':'🔍','sec-advanced':'⚙️'
+  };
+  document.querySelectorAll('.sidebar-item').forEach(s => {
+    if (s.getAttribute('onclick') === `navTo('${id}')`) s.classList.add('active');
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  FILE UPLOAD
+// ═══════════════════════════════════════════════════════════
+const dz = document.getElementById('drop-zone');
+dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('over'); handleFile(e.dataTransfer.files[0]); });
+document.getElementById('file-input').addEventListener('change', e => { if(e.target.files[0]) handleFile(e.target.files[0]); });
+
+function handleFile(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (!['xlsx','xls','csv'].includes(ext)) { showErr('Unsupported format. Use .xlsx, .xls or .csv'); return; }
+  if (file.size > 25*1024*1024) { showErr('File exceeds 25 MB.'); return; }
+  fileName = file.name.replace(/\.[^.]+$/, '');
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb   = XLSX.read(e.target.result, { type:'array', cellDates:true, raw:false });
+      const ws   = wb.Sheets[wb.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(ws, { defval:'' });
+      if (!json.length) { showErr('Sheet is empty.'); return; }
+      rawData = json;
+      headers = Object.keys(json[0]);
+      populateConfigure();
+      showScreen('screen-configure');
+      toast(`✅ Loaded ${json.length.toLocaleString()} rows · ${headers.length} columns`, 'green');
+    } catch(err) { showErr('Parse error: ' + err.message); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+function showErr(m) {
+  const el = document.getElementById('upload-err');
+  el.textContent = m; el.style.display='block';
+  setTimeout(()=>el.style.display='none', 5000);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  POPULATE CONFIGURE
+// ═══════════════════════════════════════════════════════════
+function populateConfigure() {
+  document.getElementById('sb-filename').textContent = fileName;
+  document.getElementById('sb-stats').textContent = `${rawData.length} rows · ${headers.length} cols`;
+
+  // Column grids
+  const multi = ['trim-lead','trim-trail','trim-extra','case','special','fillblank',
+                 'date','email','phone','boolean','mandatory','gtZero','dupes',
+                 'fr','html','numclean','numrange','pincode'];
+  multi.forEach(key => {
+    const el = document.getElementById(`cols-${key}`);
+    if (!el) return;
+    el.innerHTML = '';
+    headers.forEach(h => {
+      const div = document.createElement('div');
+      div.className = 'col-check';
+      div.innerHTML = `<input type="checkbox" id="col-${key}-${h}" value="${h}" onchange="onColCheck('${key}','${h}',this)"><label class="col-check-label" for="col-${key}-${h}">${h}</label>`;
+      el.appendChild(div);
+    });
+    colScopes[key] = 'all';
+  });
+
+  // Date source selects
+  ['quarter','month','year'].forEach(p => {
+    const sel = document.getElementById(`sel-${p}-src`);
+    sel.innerHTML = '<option value="">— select column —</option>';
+    headers.forEach(h => sel.add(new Option(h, h)));
+  });
+
+  // Add first FR rule
+  addFrRule();
+}
+
+function onColCheck(key, col, cb) {
+  const el = cb.closest('.col-check');
+  el.classList.toggle('checked', cb.checked);
+}
+
+function setColScope(key, mode, btn) {
+  btn.closest('.section-toggle-group').querySelectorAll('.stg-btn').forEach(b => b.classList.remove('sel'));
+  btn.classList.add('sel');
+  const grid = document.getElementById(`cols-${key}`);
+  if (!grid) return;
+  if (mode === 'select') {
+    grid.style.display = '';
+    colScopes[key] = 'select';
+  } else {
+    grid.style.display = 'none';
+    colScopes[key] = 'all';
+    grid.querySelectorAll('input[type=checkbox]').forEach(c => { c.checked = false; c.closest('.col-check').classList.remove('checked'); });
+  }
+}
+
+function getSelectedCols(key) {
+  if (colScopes[key] === 'all') return headers;
+  const grid = document.getElementById(`cols-${key}`);
+  if (!grid) return headers;
+  return [...grid.querySelectorAll('input:checked')].map(c => c.value);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  CARD TOGGLES
+// ═══════════════════════════════════════════════════════════
+function toggleCard(key) {
+  const body = document.getElementById(`cb-${key}`);
+  if (!body) return;
+  body.classList.toggle('open');
+  const card = document.getElementById(`oc-${key}`);
+  if (card) card.classList.toggle('active-card', body.classList.contains('open'));
+}
+
+// ═══════════════════════════════════════════════════════════
+//  FIND & REPLACE
+// ═══════════════════════════════════════════════════════════
+function addFrRule() {
+  const idx = frRules.length;
+  frRules.push({ find:'', replace:'', regex:false });
+  const list = document.getElementById('fr-rules-list');
+  const div  = document.createElement('div');
+  div.id = `fr-rule-${idx}`;
+  div.style.cssText = 'background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:0.75rem;margin-bottom:0.6rem;';
+  div.innerHTML = `
+    <div class="fr-grid">
+      <div>
+        <div style="font-size:0.68rem;color:var(--text2);margin-bottom:0.3rem;font-family:var(--mono);">FIND</div>
+        <input type="text" class="form-input" style="width:100%" placeholder="Text to find" oninput="frRules[${idx}].find=this.value" />
+      </div>
+      <div>
+        <div style="font-size:0.68rem;color:var(--text2);margin-bottom:0.3rem;font-family:var(--mono);">REPLACE WITH</div>
+        <input type="text" class="form-input" style="width:100%" placeholder="Replacement (blank=delete)" oninput="frRules[${idx}].replace=this.value" />
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:1rem;margin-top:0.5rem;">
+      <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.74rem;color:var(--text2);cursor:pointer;">
+        <input type="checkbox" onchange="frRules[${idx}].regex=this.checked" style="accent-color:var(--accent)"> Use Regex
+      </label>
+      <button onclick="removeFrRule(${idx})" style="font-size:0.7rem;background:var(--red-dim);color:var(--red);border:1px solid rgba(248,113,113,0.2);border-radius:6px;padding:0.25rem 0.6rem;cursor:pointer;">Remove</button>
+    </div>
+  `;
+  list.appendChild(div);
+}
+function removeFrRule(idx) {
+  const el = document.getElementById(`fr-rule-${idx}`);
+  if (el) el.remove();
+  frRules[idx] = null;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  RULES COUNT
+// ═══════════════════════════════════════════════════════════
+const ALL_RULES = ['trim-lead','trim-trail','trim-extra','case','special','fillblank','date',
+  'quarter','month','year','numclean','numrange','email','phone','boolean','mandatory',
+  'gtZero','dupes','fr','emptyrows','html','rowidx','pincode','addstatus'];
+
+function updateRulesCount() {
+  const active = ALL_RULES.filter(r => {
+    const chk = document.getElementById(`chk-${r}`);
+    return chk && chk.checked;
+  }).length;
+  document.getElementById('rules-count').textContent = `${active} rule${active!==1?'s':''} active`;
+  document.getElementById('rules-progress').style.width = `${Math.min(100,(active/ALL_RULES.length)*100)}%`;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  RUN CLEANSE
+// ═══════════════════════════════════════════════════════════
+function chk(id) { const el = document.getElementById(id); return el && el.checked; }
+function val(id) { const el = document.getElementById(id); return el ? el.value : ''; }
+
+function runCleanse() {
+  stats = { total: rawData.length, clean:0, warn:0, err:0, removed:0 };
+  let data = rawData.map(row => ({ ...row, _status:'PASS', _issues:[] }));
+
+  // ── 1. EMPTY ROWS
+  if (chk('chk-emptyrows')) {
+    const mode = val('sel-emptyrows');
+    data = data.filter(row => {
+      const vals = headers.map(h => String(row[h]||'').trim());
+      const empties = vals.filter(v=>v==='').length;
+      const allEmpty = empties === headers.length;
+      const mostEmpty = empties / headers.length > 0.5;
+      const remove = mode==='all' ? allEmpty : mostEmpty;
+      if (remove) stats.removed++;
+      return !remove;
+    });
+  }
+
+  // ── 2. TEXT RULES
+  const textRules = [
+    { key:'trim-lead',  fn: v => typeof v==='string' ? v.trimStart() : v },
+    { key:'trim-trail', fn: v => typeof v==='string' ? v.trimEnd()   : v },
+    { key:'trim-extra', fn: v => typeof v==='string' ? v.replace(/\s{2,}/g,' ') : v },
+  ];
+  textRules.forEach(({key, fn}) => {
+    if (!chk(`chk-${key}`)) return;
+    const cols = getSelectedCols(key);
+    data.forEach(row => cols.forEach(h => { if (row[h]!==undefined) row[h] = fn(row[h]); }));
+  });
+
+  // ── 3. CASE
+  if (chk('chk-case')) {
+    const mode = val('sel-case');
+    const cols = getSelectedCols('case');
+    data.forEach(row => cols.forEach(h => {
+      if (typeof row[h] === 'string') {
+        if (mode==='upper')    row[h] = row[h].toUpperCase();
+        else if(mode==='lower') row[h] = row[h].toLowerCase();
+        else if(mode==='title') row[h] = row[h].replace(/\w\S*/g, w => w[0].toUpperCase()+w.slice(1).toLowerCase());
+        else if(mode==='sentence') {
+          row[h] = row[h].charAt(0).toUpperCase() + row[h].slice(1).toLowerCase();
+        }
+      }
+    }));
+  }
+
+  // ── 4. SPECIAL CHARS
+  if (chk('chk-special')) {
+    const mode = val('sel-special');
+    const cols = getSelectedCols('special');
+    let re;
+    if (mode==='nonalpha')  re = /[^a-zA-Z0-9\s]/g;
+    else if(mode==='nonword') re = /\W/g;
+    else {
+      const pat = val('inp-custom-pattern');
+      try { re = new RegExp(pat, 'g'); } catch(e) { re = null; }
+    }
+    if (re) data.forEach(row => cols.forEach(h => {
+      if (typeof row[h]==='string') row[h] = row[h].replace(re,'');
+    }));
+  }
+
+  // ── 5. FILL BLANKS
+  if (chk('chk-fillblank')) {
+    const fillT = val('inp-fill-text') || 'N/A';
+    const fillN = val('inp-fill-num')  || '0';
+    const cols  = getSelectedCols('fillblank');
+    data.forEach(row => cols.forEach(h => {
+      if (row[h]==='' || row[h]===null || row[h]===undefined) {
+        row[h] = isNaN(parseFloat(String(row[h]))) ? fillT : fillN;
+      }
+    }));
+  }
+
+  // ── 6. HTML STRIP
+  if (chk('chk-html')) {
+    const cols = getSelectedCols('html');
+    data.forEach(row => cols.forEach(h => {
+      if (typeof row[h]==='string') row[h] = row[h].replace(/<[^>]*>/g,'');
+    }));
+  }
+
+  // ── 7. BOOLEAN
+  if (chk('chk-boolean')) {
+    const mode = val('sel-bool-fmt');
+    const cols = getSelectedCols('boolean');
+    const TRUE_VALS  = ['yes','y','1','true','t','on'];
+    const FALSE_VALS = ['no','n','0','false','f','off'];
+    data.forEach(row => cols.forEach(h => {
+      const low = String(row[h]).trim().toLowerCase();
+      if (TRUE_VALS.includes(low)) {
+        row[h] = mode==='YN'?'Y' : mode==='YesNo'?'Yes' : mode==='10'?'1' : 'TRUE';
+      } else if(FALSE_VALS.includes(low)) {
+        row[h] = mode==='YN'?'N' : mode==='YesNo'?'No' : mode==='10'?'0' : 'FALSE';
+      }
+    }));
+  }
+
+  // ── 8. NUMBERS
+  if (chk('chk-numclean')) {
+    const curr  = val('inp-currency').trim();
+    const decs  = parseInt(val('sel-decimals'));
+    const cols  = getSelectedCols('numclean');
+    data.forEach(row => cols.forEach(h => {
+      let v = String(row[h]);
+      if (curr) v = v.replace(new RegExp('\\'+curr.split('').join('|\\'), 'g'), '');
+      v = v.replace(/,/g,'').trim();
+      const num = parseFloat(v);
+      if (!isNaN(num)) {
+        row[h] = decs >= 0 ? parseFloat(num.toFixed(decs)) : num;
+      }
+    }));
+  }
+
+  // ── 9. NUM RANGE
+  if (chk('chk-numrange')) {
+    const minV = val('inp-min-val') !== '' ? parseFloat(val('inp-min-val')) : null;
+    const maxV = val('inp-max-val') !== '' ? parseFloat(val('inp-max-val')) : null;
+    const cols = getSelectedCols('numrange');
+    data.forEach(row => cols.forEach(h => {
+      const num = parseFloat(row[h]);
+      if (!isNaN(num)) {
+        if (minV !== null && num < minV) row[h] = minV;
+        if (maxV !== null && num > maxV) row[h] = maxV;
+      }
+    }));
+  }
+
+  // ── 10. PHONE
+  if (chk('chk-phone')) {
+    const fmt  = val('sel-phone-fmt');
+    const cols = getSelectedCols('phone');
+    data.forEach(row => cols.forEach(h => {
+      const digits = String(row[h]).replace(/\D/g,'');
+      if (!digits) return;
+      if      (fmt==='digits')  row[h] = digits;
+      else if (fmt==='dashes')  row[h] = digits.replace(/(\d{3})(\d{3})(\d+)/,'$1-$2-$3');
+      else if (fmt==='country') row[h] = '+91-' + digits.slice(-10);
+      else if (fmt==='dots')    row[h] = digits.replace(/(\d{3})(\d{3})(\d+)/,'$1.$2.$3');
+    }));
+  }
+
+  // ── 11. PAD CODES
+  if (chk('chk-pincode')) {
+    const len  = parseInt(val('inp-pad-len'))  || 6;
+    const char = val('inp-pad-char') || '0';
+    const cols = getSelectedCols('pincode');
+    data.forEach(row => cols.forEach(h => {
+      row[h] = String(row[h]).padStart(len, char);
+    }));
+  }
+
+  // ── 12. FIND & REPLACE
+  if (chk('chk-fr')) {
+    const cols = getSelectedCols('fr');
+    frRules.filter(Boolean).forEach(({ find, replace, regex }) => {
+      if (!find) return;
+      const re = regex ? new RegExp(find,'g') : null;
+      data.forEach(row => cols.forEach(h => {
+        if (typeof row[h]==='string') {
+          row[h] = re ? row[h].replace(re, replace) : row[h].split(find).join(replace);
+        }
+      }));
+    });
+  }
+
+  // ── 13. DATE FORMAT
+  if (chk('chk-date')) {
+    const fmt  = val('sel-date-fmt');
+    const cols = getSelectedCols('date');
+    data.forEach(row => cols.forEach(h => {
+      const d = parseAnyDate(row[h]);
+      if (d) row[h] = formatDate(d, fmt);
+    }));
+  }
+
+  // ── 14. QUARTER / MONTH / YEAR derived columns
+  if (chk('chk-quarter')) {
+    const src = val('sel-quarter-src');
+    const fmt = val('sel-quarter-fmt');
+    const col = val('inp-quarter-col') || 'Quarter';
+    if (src) {
+      if (!headers.includes(col)) headers.push(col);
+      data.forEach(row => {
+        const d = parseAnyDate(row[src]);
+        if (!d) { row[col]=''; return; }
+        const q = Math.floor(d.getMonth()/3)+1;
+        const y = d.getFullYear();
+        row[col] = fmtQuarter(q, y, fmt);
+      });
+    }
+  }
+  if (chk('chk-month')) {
+    const src = val('sel-month-src');
+    const fmt = val('sel-month-fmt');
+    const col = val('inp-month-col') || 'Month';
+    if (src) {
+      if (!headers.includes(col)) headers.push(col);
+      data.forEach(row => {
+        const d = parseAnyDate(row[src]);
+        if (!d) { row[col]=''; return; }
+        row[col] = fmtMonth(d, fmt);
+      });
+    }
+  }
+  if (chk('chk-year')) {
+    const src = val('sel-year-src');
+    const fmt = val('sel-year-fmt');
+    const col = val('inp-year-col') || 'Year';
+    if (src) {
+      if (!headers.includes(col)) headers.push(col);
+      data.forEach(row => {
+        const d = parseAnyDate(row[src]);
+        if (!d) { row[col]=''; return; }
+        const y = d.getFullYear();
+        if (fmt==='YYYY') row[col] = y;
+        else if(fmt==='YY') row[col] = String(y).slice(-2);
+        else if(fmt==='FY-YYYY') {
+          const m = d.getMonth();
+          row[col] = m >= 3 ? `FY ${y}-${String(y+1).slice(-2)}` : `FY ${y-1}-${String(y).slice(-2)}`;
+        }
+        else row[col] = `CY ${y}`;
+      });
+    }
+  }
+
+  // ── 15. EMAIL VALIDATION
+  if (chk('chk-email')) {
+    const action = val('sel-email-action');
+    const cols   = getSelectedCols('email');
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    data = data.filter(row => {
+      let remove = false;
+      cols.forEach(h => {
+        const v = String(row[h]||'').trim();
+        if (v && !emailRe.test(v)) {
+          if (action==='flag')   { row._status='WARN'; row._issues.push(`Invalid email in "${h}"`); }
+          else if(action==='blank') { row[h]=''; row._status='WARN'; row._issues.push(`Cleared invalid email in "${h}"`); }
+          else { remove=true; }
+        }
+      });
+      if (remove) { stats.removed++; return false; }
+      return true;
+    });
+  }
+
+  // ── 16. MANDATORY
+  if (chk('chk-mandatory')) {
+    const action = val('sel-mandatory-action');
+    const cols   = getSelectedCols('mandatory');
+    data = data.filter(row => {
+      let remove = false;
+      cols.forEach(h => {
+        if (row[h]==='' || row[h]===null || row[h]===undefined) {
+          if (action==='flag') { row._status='ERR'; row._issues.push(`"${h}" is mandatory but empty`); }
+          else remove = true;
+        }
+      });
+      if (remove) { stats.removed++; return false; }
+      return true;
+    });
+  }
+
+  // ── 17. GREATER THAN ZERO
+  if (chk('chk-gtZero')) {
+    const action = val('sel-gtZero-action');
+    const cols   = getSelectedCols('gtZero');
+    data = data.filter(row => {
+      let remove = false;
+      cols.forEach(h => {
+        const num = parseFloat(row[h]);
+        if (isNaN(num) || num <= 0) {
+          if (action==='flag')   { row._status='WARN'; row._issues.push(`"${h}" must be > 0 (got ${row[h]})`); }
+          else if(action==='zero') { row[h] = 0; row._status='WARN'; row._issues.push(`"${h}" replaced with 0`); }
+          else remove = true;
+        }
+      });
+      if (remove) { stats.removed++; return false; }
+      return true;
+    });
+  }
+
+  // ── 18. DUPLICATES
+  if (chk('chk-dupes')) {
+    const action = val('sel-dupes-action');
+    const cols   = getSelectedCols('dupes');
+    const seen   = new Map();
+    data.forEach((row, i) => {
+      const key = cols.map(h => String(row[h]||'')).join('||');
+      if (!seen.has(key)) seen.set(key, i);
+      else row._isDupe = true;
+    });
+    if (action==='keep-last') {
+      // re-scan reversed
+      seen.clear();
+      for (let i=data.length-1; i>=0; i--) {
+        const key = cols.map(h => String(data[i][h]||'')).join('||');
+        if (!seen.has(key)) { seen.set(key,i); delete data[i]._isDupe; }
+        else data[i]._isDupe = true;
+      }
+    }
+    data = data.filter(row => {
+      if (!row._isDupe) return true;
+      if (action==='flag') { row._status='WARN'; row._issues.push('Duplicate row'); return true; }
+      stats.removed++; return false;
+    });
+  }
+
+  // ── 19. ROW INDEX
+  if (chk('chk-rowidx')) {
+    const colName = val('inp-rowidx-name') || 'Row_No';
+    const start   = parseInt(val('inp-rowidx-start')) || 1;
+    if (!headers.includes(colName)) headers.unshift(colName);
+    data.forEach((row, i) => row[colName] = start + i);
+  }
+
+  // ── 20. CLEANSE STATUS COLUMN
+  if (chk('chk-addstatus')) {
+    const colName = val('inp-status-col') || 'Cleanse_Status';
+    if (!headers.includes(colName)) headers.push(colName);
+    data.forEach(row => {
+      row[colName] = row._status || 'PASS';
+    });
+  }
+
+  // ── FINAL STATS
+  data.forEach(row => {
+    if (row._status==='ERR')  stats.err++;
+    else if(row._status==='WARN') stats.warn++;
+    else stats.clean++;
+  });
+
+  cleanedData = data;
+  renderPreview();
+  showScreen('screen-preview');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  DATE HELPERS
+// ═══════════════════════════════════════════════════════════
+function parseAnyDate(v) {
+  if (!v) return null;
+  if (v instanceof Date) return isNaN(v)?null:v;
+  const d = new Date(v);
+  if (!isNaN(d)) return d;
+  // Try DD/MM/YYYY
+  const m = String(v).match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/);
+  if (m) {
+    const d2 = new Date(`${m[3].length===2?'20'+m[3]:m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`);
+    if (!isNaN(d2)) return d2;
+  }
+  return null;
+}
+function formatDate(d, fmt) {
+  const dd   = String(d.getDate()).padStart(2,'0');
+  const dRaw = d.getDate();
+  const mm   = String(d.getMonth()+1).padStart(2,'0');
+  const yyyy = d.getFullYear();
+  const mmm  = MONTHS_SHORT[d.getMonth()];
+  const mmmm = MONTHS_LONG[d.getMonth()];
+  return fmt
+    .replace('DD',dd).replace('D',dRaw)
+    .replace('MMMM',mmmm).replace('MMM',mmm).replace('MM',mm)
+    .replace('YYYY',yyyy);
+}
+function fmtQuarter(q, y, fmt) {
+  if (fmt==='Q#')       return `Q${q}`;
+  if (fmt==='Qtr #')    return `Qtr ${q}`;
+  if (fmt==='Quarter #') return `Quarter ${q}`;
+  if (fmt==='#Q')       return `${q}Q`;
+  if (fmt==='Q#-YYYY')  return `Q${q}-${y}`;
+  if (fmt==='YYYY-Q#')  return `${y}-Q${q}`;
+  return String(q);
+}
+function fmtMonth(d, fmt) {
+  const m  = d.getMonth();
+  const y  = d.getFullYear();
+  const mm = String(m+1).padStart(2,'0');
+  if (fmt==='MMM')        return MONTHS_SHORT[m];
+  if (fmt==='MMMM')       return MONTHS_LONG[m];
+  if (fmt==='MM')         return mm;
+  if (fmt==='M')          return String(m+1);
+  if (fmt==='MMM-YYYY')   return `${MONTHS_SHORT[m]}-${y}`;
+  if (fmt==='MMMM YYYY')  return `${MONTHS_LONG[m]} ${y}`;
+  return String(m+1);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  RENDER PREVIEW
+// ═══════════════════════════════════════════════════════════
+function renderPreview() {
+  document.getElementById('prev-total').textContent = `${cleanedData.length} rows`;
+  document.getElementById('prev-clean').textContent = `${stats.clean} clean`;
+  document.getElementById('prev-warn').textContent  = `${stats.warn} warnings`;
+  document.getElementById('prev-err').textContent   = `${stats.err} errors`;
+
+  // Issues
+  const iCont = document.getElementById('issues-container');
+  const allIssues = [];
+  cleanedData.forEach((row, i) => {
+    (row._issues||[]).forEach(msg => allIssues.push({ row: i+1, msg, status: row._status }));
+  });
+  if (stats.removed) allIssues.unshift({ row:'—', msg:`${stats.removed} rows removed by active rules`, status:'ERR' });
+
+  iCont.innerHTML = allIssues.slice(0,10).map(({row, msg, status}) => `
+    <div class="issue-item ${status==='ERR'?'err':status==='WARN'?'warn':'info'}">
+      <span class="issue-icon">${status==='ERR'?'❌':status==='WARN'?'⚠️':'ℹ️'}</span>
+      <div class="issue-msg"><strong>${msg}</strong><span>Row ${row}</span></div>
+    </div>
+  `).join('') + (allIssues.length>10?`<div style="font-size:0.75rem;color:var(--text2);padding:0.5rem 1rem;">… and ${allIssues.length-10} more issues</div>`:'');
+
+  if (!allIssues.length) {
+    iCont.innerHTML = `<div class="issue-item info"><span class="issue-icon">✅</span><div class="issue-msg"><strong>No issues detected</strong><span>All selected rules passed cleanly.</span></div></div>`;
+  }
+
+  // Table
+  const thead = document.getElementById('preview-thead');
+  const tbody = document.getElementById('preview-tbody');
+  const displayHeaders = headers.filter(h => !['_status','_issues','_isDupe'].includes(h));
+
+  thead.innerHTML = `<th style="color:var(--text3);width:60px;">#</th><th>Status</th>` +
+    displayHeaders.map(h => `<th>${h}</th>`).join('');
+
+  const rows = cleanedData.slice(0, 100);
+  tbody.innerHTML = rows.map((row, i) => {
+    const st  = row._status || 'PASS';
+    const sc  = st==='ERR' ? 'cell-error' : st==='WARN' ? 'cell-warn' : 'cell-ok';
+    const cells = displayHeaders.map(h => `<td title="${String(row[h]||'')}">${String(row[h]||'')}</td>`).join('');
+    return `<tr><td style="color:var(--text3)">${i+1}</td><td><span class="${sc}">${st}</span></td>${cells}</tr>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  DOWNLOAD
+// ═══════════════════════════════════════════════════════════
+function goDownload() {
+  document.getElementById('dl-total').textContent   = cleanedData.length;
+  document.getElementById('dl-clean').textContent   = stats.clean;
+  document.getElementById('dl-issues').textContent  = stats.warn + stats.err;
+  document.getElementById('dl-removed').textContent = stats.removed;
+  showScreen('screen-download');
+}
+
+function downloadFile(format) {
+  const displayHeaders = headers.filter(h => !['_status','_issues','_isDupe'].includes(h));
+  const exportData = cleanedData.map(row => {
+    const out = {};
+    displayHeaders.forEach(h => out[h] = row[h] ?? '');
+    return out;
+  });
+
+  const ws = XLSX.utils.json_to_sheet(exportData, { header: displayHeaders });
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Cleansed Data');
+
+  const outName = `${fileName}_cleansed`;
+  if (format === 'xlsx') {
+    XLSX.writeFile(wb, `${outName}.xlsx`);
+  } else {
+    const csv = XLSX.utils.sheet_to_csv(ws);
+    const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${outName}.csv`;
+    a.click();
+  }
+  toast('⬇ Download started!', 'green');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  MISC
+// ═══════════════════════════════════════════════════════════
+function resetAll() {
+  rawData=[]; headers=[]; cleanedData=[]; fileName='';
+  colScopes={}; frRules=[]; stats={total:0,clean:0,warn:0,err:0,removed:0};
+  document.getElementById('file-input').value='';
+}
+
+document.getElementById('sel-special').addEventListener('change', function() {
+  document.getElementById('fr-custom-pattern').style.display = this.value==='custom' ? '' : 'none';
+});
+
+let toastTimer;
+function toast(msg, type='blue') {
+  const el = document.getElementById('toast');
+  const colors = { green:'var(--green)', blue:'var(--accent)', red:'var(--red)', yellow:'var(--yellow)' };
+  el.innerHTML = `<span style="color:${colors[type]||colors.blue}">${msg}</span>`;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>
